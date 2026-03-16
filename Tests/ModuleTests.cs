@@ -1,26 +1,43 @@
-using StudyTasksApi.Models;
+using Xunit;
 
-namespace StudyTasksApi.Services;
-
-public class TaskRepository
+public class ModuleTests
 {
-    private readonly List<StudyTask> _tasks = new();
-    private int _nextId = 1;
-
-    public List<StudyTask> GetAll()
+    [Fact]
+    public void CorrectOrderTest()
     {
-        return _tasks;
+        var modules = new List<IModule>
+        {
+            new ValidationModule(),
+            new ReportingModule(),
+            new ExportModule()
+        };
+
+        var ordered = DependencyResolver.Resolve(modules);
+
+        Assert.Equal("Validation", ordered[0].Name);
+        Assert.Equal("Reporting", ordered[1].Name);
+        Assert.Equal("Export", ordered[2].Name);
     }
 
-    public StudyTask? GetById(int id)
+    [Fact]
+    public void MissingDependencyTest()
     {
-        return _tasks.FirstOrDefault(t => t.Id == id);
+        var modules = new List<IModule>
+        {
+            new ReportingModule()
+        };
+
+        Assert.Throws<Exception>(() => DependencyResolver.Resolve(modules));
     }
 
-    public StudyTask Add(StudyTask task)
+    [Fact]
+    public void CycleTest()
     {
-        task.Id = _nextId++;
-        _tasks.Add(task);
-        return task;
+        var a = new TestModule("A", new() { "B" });
+        var b = new TestModule("B", new() { "A" });
+
+        var modules = new List<IModule> { a, b };
+
+        Assert.Throws<Exception>(() => DependencyResolver.Resolve(modules));
     }
 }
